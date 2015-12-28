@@ -1,5 +1,5 @@
 # Redirect Control
-by [hjgwmvya](https://addons.mozilla.org/de/firefox/user/hjgwmvya/)
+by [hjgwmvya](https://github.com/hjgwmvya)
 
 ## Summery
 
