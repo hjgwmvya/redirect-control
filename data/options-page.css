@@ -1,0 +1,44 @@
+body
+{
+    font: 12px sans-serif;
+}
+
+#head-origin
+{
+    width: 200px;
+    cursor: pointer;
+}
+
+#head-destination
+{
+    width: 200px;
+    cursor: pointer;
+}
+
+#input-origin
+{
+    width: 200px;
+}
+
+#input-destination
+{
+    width: 200px;
+}
+
+#button-add
+{
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    background: transparent url("./images/add.png") no-repeat left top;
+    cursor: pointer;
+}
+
+.remove-button
+{
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    background: transparent url("./images/bin_closed.png") no-repeat left top;
+    cursor: pointer;
+}

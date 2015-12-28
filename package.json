@@ -1,0 +1,23 @@
+{
+  "title": "Redirect Control",
+  "name": "redirectcontrol",
+  "id": "redirectcontrol@hjgwmvya",
+  "version": "0.0.7",
+  "description": "This add-on enables you to allow or deny redirects from web pages.",
+  "icon": "resource://redirectcontrol-at-hjgwmvya/data/images/redirect-48.png",
+  "main": "main.js",
+  "author": "hjgwmvya",
+  "permissions": {
+    "private-browsing": true
+  },
+  "engines": {
+    "firefox": ">=38.0a1"
+  },
+  "preferences": [{
+    "type": "control",
+    "name": "addon-page",
+    "title": "addon-page_title",
+    "label": "addon-page_label"
+  }],
+  "license": "GPL-3.0"
+}
