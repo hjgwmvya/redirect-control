@@ -16,7 +16,7 @@ if (!storage.rules || !Array.isArray(storage.rules))
     addRule("mozilla.org", "mozilla.com");
 }
 
-let listeners = [ ];
+var listeners = [ ];
 
 function getRules()
 {

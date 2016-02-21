@@ -2,7 +2,7 @@
   "title": "Redirect Control",
   "name": "redirectcontrol",
   "id": "redirectcontrol@hjgwmvya",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "This add-on enables you to allow or deny redirects from web pages.",
   "icon": "resource://redirectcontrol-at-hjgwmvya/data/images/redirect-48.png",
   "main": "main.js",

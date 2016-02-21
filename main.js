@@ -309,7 +309,7 @@ webProgress.addListener(function(webProgress, request, stateFlags, status)
     }
     catch (e) { }
     if (!window || window.frameElement) return;
-
+    
     let channel = request.nsIHttpChannel;
     if (!channel) return;
 
@@ -317,7 +317,14 @@ webProgress.addListener(function(webProgress, request, stateFlags, status)
     if (!tab || !tab.linkedBrowser.docShell) return;
 
     let loadInfo = channel.loadInfo;
-    if (loadInfo.contentPolicyType != Ci.nsIContentPolicy.TYPE_DOCUMENT) return;
+
+    // loadInfo.externalContentPolicyType for FF version >= 44.0
+    // loadInfo.contentPolicyType for FF version < 44.0
+    if (loadInfo.contentPolicyType != Ci.nsIContentPolicy.TYPE_DOCUMENT && 
+        loadInfo.externalContentPolicyType != Ci.nsIContentPolicy.TYPE_DOCUMENT)
+    {
+        return;
+    }
 
     let originLocation = urls.URL(channel.originalURI.prePath + channel.originalURI.path);
     let destinationLocation = urls.URL(channel.URI.prePath + channel.URI.path);
