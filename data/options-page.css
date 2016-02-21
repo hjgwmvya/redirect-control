@@ -1,28 +1,32 @@
 body
 {
-    font: 12px sans-serif;
+    font: message-box;
+    font-size: 14px;
 }
 
-#head-origin
+.head-category
+{
+    font-size: 24px;
+    font-weight: 200;
+    line-height: 1em;
+    margin: 24px 0 12px 0;
+}
+
+#head-origin, #head-destination, #head-regular-expression
 {
     width: 200px;
     cursor: pointer;
 }
 
-#head-destination
+#input-origin, #input-destination
 {
-    width: 200px;
-    cursor: pointer;
+    width: 198px;
 }
 
-#input-origin
+#input-regular-expression-center
 {
-    width: 200px;
-}
-
-#input-destination
-{
-    width: 200px;
+    display: -moz-grid;
+    width: 198px;
 }
 
 #button-add
@@ -32,6 +36,7 @@ body
     height: 16px;
     background: transparent url("./images/add.png") no-repeat left top;
     cursor: pointer;
+    margin-left: 6px;
 }
 
 .remove-button

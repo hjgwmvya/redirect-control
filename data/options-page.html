@@ -6,16 +6,24 @@
         <link rel="icon" type="image/ico" href="images/redirect.ico">
     </head>
     <body>
-        <span data-l10n-id-text="options-page-allowed-redirects">Allowed Redirects:</span>
+        <div class="head-category" data-l10n-id-text="options-page-common-settings">Common Settings</div>
+        <div><input type="checkbox" id="allow-base-domain"><label for="allow-base-domain" data-l10n-id-text="options-page-allow-request-from-same-base-domain">Allow request with the same base domain (e.g. abc.domain.tld -> xyz.domain.tld)</label></div>
+        <div><input type="checkbox" id="ignore-subdomains"><label for="ignore-subdomains" data-l10n-id-text="options-page-ignore-subdomains">Ignore subdomains</label></div>
+        <div><input type="checkbox" id="allow-triggered-by-link-click"><label for="allow-triggered-by-link-click" data-l10n-id-text="options-page-allow-request-triggered-by-a-link-click">Allow request triggered by a link click</label></div>
+        <div data-l10n-id-text="options-page-allowed-redirects" class="head-category">Allowed Redirects:</div>
         <table>
         <tbody id="rules">
             <tr>
-                <th id="head-origin" data-l10n-id-text="options-page-origin">Origin</th><th id="head-destination" data-l10n-id-text="options-page-destination">Destination</th><th></th>
+                <th id="head-origin" data-l10n-id-text="options-page-origin">Origin</th><th id="head-destination" data-l10n-id-text="options-page-destination">Destination</th><th id="head-regular-expression" data-l10n-id-text="options-page-regular-expression">Regular Expression</th><th></th>
             </tr>
         </tbody>
         </table>
-        <input id="input-origin" />
-        <input id="input-destination" />
-        <span id="button-add" title="Add Rule" data-l10n-id-title="options-page-add-rule" />
+        <input type="text" id="input-origin" />
+        <input type="text" id="input-destination" />
+        <center id="input-regular-expression-center"><input type="checkbox" id="input-regular-expression" /></center>
+        <span id="button-add" title="Add Rule" data-l10n-id-title="options-page-add-rule"> </span>
+        <div><span data-l10n-id-text="options-page-more-about">More about</span> <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#Writing_a_regular_expression_pattern" data-l10n-id-text="options-page-regular-expression">regular expressions</a></div>
+        <div class="head-category" data-l10n-id-text="options-page-import-export">Import/Export</div>
+        <div><input type="button" id="import-rules" value="Import Rules" data-l10n-id-value="options-page-import-rules" /><input type="button" id="export-rules" value="Export Rules" data-l10n-id-value="options-page-export-rules" /></div>
     </body>
 </html>

@@ -6,6 +6,7 @@ const unload = require("sdk/system/unload");
 const urls = require("sdk/url");
 const tabs = require("sdk/tabs");
 const utils = require("./utils.js");
+const settings = require("./settings.js");
 const rules = require("./rules.js");
 const notification = require("./ui/notification.js");
 
@@ -256,10 +257,13 @@ function isRequestAllowed(loadType, referrerLocation, destinationLocation, isRed
         return true;
     }
 
-    if (!isRedirect && (loadType & Ci.nsIDocShell.LOAD_CMD_NORMAL) && ((loadType >> 16) & Ci.nsIWebNavigation.LOAD_FLAGS_IS_LINK))
+    if (settings.get("allowTriggeredByLinkClick"))
     {
-        console.log("Request allowed: Link clicked");
-        return true;
+        if (!isRedirect && (loadType & Ci.nsIDocShell.LOAD_CMD_NORMAL) && ((loadType >> 16) & Ci.nsIWebNavigation.LOAD_FLAGS_IS_LINK))
+        {
+            console.log("Request allowed: Link clicked");
+            return true;
+        }
     }
 
     if (!referrerLocation)
@@ -267,32 +271,63 @@ function isRequestAllowed(loadType, referrerLocation, destinationLocation, isRed
         console.log("Request allowed: User action");
         return true;
     }
-
-    if (containsClickedLink(referrerLocation.href, destinationLocation.href))
+   
+    if (referrerLocation.host == destinationLocation.host)
     {
-        console.log("Request allowed: Link clicked");
+        console.log("Request allowed: Same host");
         return true;
+    }
+   
+    if (settings.get("allowTriggeredByLinkClick"))
+    {
+        if (containsClickedLink(referrerLocation.href, destinationLocation.href))
+        {
+            console.log("Request allowed: Link clicked");
+            return true;
+        }
     }
     
-    if (isSameBaseDomain(referrerLocation, destinationLocation))
+    if (settings.get("allowBaseDomain"))
     {
-        console.log("Request allowed: Same base domain");
-        return true;
+        if (isSameBaseDomain(referrerLocation, destinationLocation))
+        {
+            console.log("Request allowed: Same base domain");
+            return true;
+        }
     }
-
-    let referrerBaseDomain = utils.getBaseDomainFromHost(referrerLocation.host);
-    let destinationBaseDomain = utils.getBaseDomainFromHost(destinationLocation.host);
-    if (rules.exists(referrerBaseDomain, destinationBaseDomain) ||
-        rules.exists(referrerBaseDomain, null) ||
-        rules.exists(null, destinationBaseDomain))
+    
+    if (settings.get("ignoreSubdomains"))
     {
-        console.log("Request allowed: Rule matched");
-        return true;
+        console.log(referrerLocation.host);
+        console.log(utils.getBaseDomainFromHost(referrerLocation.host));
+        console.log(destinationLocation.host);
+        console.log(utils.getBaseDomainFromHost(destinationLocation.host));
+        
+        let referrerBaseDomain = utils.getBaseDomainFromHost(referrerLocation.host);
+        let destinationBaseDomain = utils.getBaseDomainFromHost(destinationLocation.host);
+        if ((referrerBaseDomain == destinationBaseDomain) ||
+            rules.exists(referrerBaseDomain, destinationBaseDomain) ||
+            rules.exists(referrerBaseDomain, null) ||
+            rules.exists(null, destinationBaseDomain))
+        {
+            console.log("Request allowed: Rule matched");
+            return true;
+        }
     }
-
+    else
+    {
+        if (rules.exists(referrerLocation.host, destinationLocation.host) ||
+            rules.exists(referrerLocation.host, null) ||
+            rules.exists(null, destinationLocation.host))
+        {
+            console.log("Request allowed: Rule matched");
+            return true;
+        }
+    }
+    
     return false;
     }
-    catch(e)
+    catch (e)
     {
         console.error(e);
     }

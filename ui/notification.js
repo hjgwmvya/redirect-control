@@ -1,6 +1,7 @@
 const self = require("sdk/self");
 const _ = require("sdk/l10n").get;
 const utils = require("./../utils.js");
+const settings = require("./../settings.js");
 const rules = require("./../rules.js");
 
 exports.show = showNotification;
@@ -36,8 +37,10 @@ function addMenuItem(document, menuPopup, id, label, callback)
 
 function showNotification(tabId, contentWindow, originLocation, destinationLocation)
 {
-    let originBaseDomain = utils.getBaseDomainFromHost(originLocation.host);
-    let destinationBaseDomain = utils.getBaseDomainFromHost(destinationLocation.host);
+    let ignoreSubdomains = settings.get("ignoreSubdomains");
+
+    let originBaseDomain = (ignoreSubdomains) ? utils.getBaseDomainFromHost(originLocation.host) : originLocation.host;
+    let destinationBaseDomain = (ignoreSubdomains) ? utils.getBaseDomainFromHost(destinationLocation.host) : destinationLocation.host;
 
     let chromeWindow = utils.getChromeWindow(contentWindow);
     let notificationBox = chromeWindow.getNotificationBox(contentWindow);

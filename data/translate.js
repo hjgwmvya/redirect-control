@@ -34,9 +34,25 @@ function translateTitle(root)
         });
     });
 }
+function translateValue(root)
+{
+    root.find("*[data-l10n-id-value]").each(function()
+    {
+        let self = $(this);
+        let id = self.attr("data-l10n-id-value");
+        _(id, function(text)
+        {
+            if (self.attr("value") != text)
+            {
+                self.attr("value", text);
+            }
+        });
+    });
+}
 
 translateText($(":root"));
 translateTitle($(":root"));
+translateValue($(":root"));
 
 let observer = new window.MutationObserver(function(mutations)
 {
@@ -46,11 +62,13 @@ let observer = new window.MutationObserver(function(mutations)
         {
             translateText($(mutation.addedNodes));
             translateTitle($(mutation.addedNodes));
+			translateValue($(mutation.addedNodes));
         }
-        else if (mutation.type == "attributes" && (mutation.attributeName == "data-l10n-id-text" || mutation.attributeName == "data-l10n-id-title"))
+        else if (mutation.type == "attributes" && (mutation.attributeName == "data-l10n-id-text" || mutation.attributeName == "data-l10n-id-title" || mutation.attributeName == "data-l10n-id-value"))
         {
             translateText($(mutation.target));
             translateTitle($(mutation.target));
+			translateValue($(mutation.target));
         }
     });
 });

@@ -1,3 +1,4 @@
+let settings = [ ];
 let rules = [ ];
 let sortOption =
 {
@@ -5,6 +6,19 @@ let sortOption =
     columns: [ "origin", "destination" ],
 };
 
+ $("#allow-base-domain").change(function(event)
+ {
+    changeSetting("allowBaseDomain", $("#allow-base-domain").prop("checked"));
+ });
+  $("#ignore-subdomains").change(function(event)
+ {
+    changeSetting("ignoreSubdomains", $("#ignore-subdomains").prop("checked"));
+ });
+$("#allow-triggered-by-link-click").change(function(event)
+ {
+     changeSetting("allowTriggeredByLinkClick", $("#allow-triggered-by-link-click").prop("checked"));
+ });
+ 
 $("#head-origin").on("click", function(event)
 {
     event.preventDefault();
@@ -24,17 +38,32 @@ $("#button-add").on("click", function(event)
     addRule();
 });
 
+$("#import-rules").on("click", function(event)
+{
+    self.port.emit("import-rules");
+});
+$("#export-rules").on("click", function(event)
+{
+    self.port.emit("export-rules");
+});
+
+function changeSetting(name, value)
+{
+    self.port.emit("set-setting", { name: name, value: value });
+}
+
 function addRule()
 {
     let origin = $("#input-origin").val();
     let destination = $("#input-destination").val();
+    let regularExpression = $("#input-regular-expression").prop("checked");
 
-    self.port.emit("add-rule", { origin: origin, destination: destination });
+    self.port.emit("add-rule", { origin: origin, destination: destination, regularExpression: regularExpression });
 }
 
-function deleteRule(origin, destination)
+function deleteRule(origin, destination, regularExpression)
 {
-    self.port.emit("delete-rule", { origin: origin, destination: destination });
+    self.port.emit("delete-rule", { origin: origin, destination: destination, regularExpression: regularExpression });
 }
 
 function setSorting(columns)
@@ -97,6 +126,13 @@ function replaceNull(value)
     return (value) ? value : "(any)";
 }
 
+function updateSettings()
+{
+    $("#allow-base-domain").prop("checked", settings.allowBaseDomain);
+    $("#ignore-subdomains").prop("checked", settings.ignoreSubdomains);
+    $("#allow-triggered-by-link-click").prop("checked", settings.allowTriggeredByLinkClick);
+}
+
 function updateRules()
 {
     $(".rule").remove();
@@ -109,16 +145,25 @@ function updateRules()
 
         let cellOrigin = $("<td>" + escapeTags(replaceNull(rule.origin)) + "</td>");
         let cellDestination = $("<td>" + escapeTags(replaceNull(rule.destination)) + "</td>");
+        let cellRegularExpression = $("<td><center><input type=\"checkbox\" disabled " + (rule.regularExpression ? "checked" : "") + " /><center></td>");
         let deleteButton = $("<td><span class=\"remove-button\" title=\"Remove Rule\" data-l10n-id-title=\"options-page-remove-rule\" /></td>")
-                            .on("click", function() { deleteRule(rule.origin, rule.destination) });
+                            .on("click", function() { deleteRule(rule.origin, rule.destination, rule.regularExpression) });
         let ruleLine = $("<tr class=\"rule\" />")
                         .append(cellOrigin)
                         .append(cellDestination)
+                        .append(cellRegularExpression)
                         .append(deleteButton);
 
         $("#rules").append(ruleLine);
     }
 }
+
+self.port.on("set-settings", function(values)
+{
+    settings = values;
+
+    updateSettings();
+});
 
 self.port.on("set-rules", function(values)
 {

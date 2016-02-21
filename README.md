@@ -15,16 +15,18 @@ Redirect Control is a security add-on that enables you to allow or deny redirect
 
 Following requests are allowed by default:
 
- * If origin and destination of the request have the same base domain (e.g. abc.domain.tld -> xyz.domain.tld)
- * Requests triggered by a link click
+ * If origin and destination of the request have the same base domain (e.g. abc.domain.tld -> xyz.domain.tld, can be disabled)
+ * Requests triggered by a link click (can be disabled)
  * Requests matching user-defined rules
 
-Following patterns are possible for user-defined rules to allow requests by default (Letter x stands for any domain):
+Following patterns are possible for user-defined rules to allow requests by default:
 
  * domainABC.tld -> domainXYZ.tld
- * domain.tld -> x
- * x -> domain.tld
-
+ * domain.tld -> (to any domain)
+ * (from any domain) -> domain.tld
+ * abc.domain.tld -> xyz.domain.tld (rules for specfic subdomains, optional)
+ * \*.domainABC.tld -> \*.domainABC.tld (wildcards supported)
+ * ^(.\*\\.)?mozilla\.(com|org)$ ->	^(.\*\\.)?mozilla\.(com|org)$ (regular expressions supported, optional)
  
 ## License
 
