@@ -12,13 +12,13 @@ body
     margin: 24px 0 12px 0;
 }
 
-#head-origin, #head-destination, #head-regular-expression
+#head-source, #head-target, #head-regular-expression
 {
     width: 200px;
     cursor: pointer;
 }
 
-#input-origin, #input-destination
+#input-source, #input-target
 {
     width: 198px;
 }

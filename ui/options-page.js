@@ -10,7 +10,7 @@ const _ = require("sdk/l10n").get;
 const settings = require("./../settings.js");
 const rules = require("./../rules.js");
 
-var workers = [ ];
+let workers = [ ];
 
 unload.when(function(reason)
 {
@@ -50,7 +50,7 @@ pageMod.PageMod(
         workers.push(worker);
         worker.on("detach", function()
         {
-            var index = workers.indexOf(worker);
+            let index = workers.indexOf(worker);
             if(index != -1)
             {
                 workers.splice(index, 1);
@@ -70,11 +70,11 @@ pageMod.PageMod(
         
         worker.port.on("add-rule", function(rule)
         {
-            rules.add(rule.origin, rule.destination, rule.regularExpression);
+            rules.add(rule);
         });
         worker.port.on("delete-rule", function(rule)
         {
-            rules.remove(rule.origin, rule.destination, rule.regularExpression);
+            rules.remove(rule);
         });
         worker.port.emit("set-rules", rules.getRules());
         
@@ -107,11 +107,9 @@ function importRules()
     {
         stream.init(filePicker.file, 0x01, parseInt("0444", 8), null);
         streamIO.init(stream);
-        var input = streamIO.read(stream.available());
+        let input = streamIO.read(stream.available());
         streamIO.close();
-        stream.close();
-        
-        var text = input;
+        stream.close();       
         
         try
         {
@@ -119,8 +117,8 @@ function importRules()
             for (let rule of JSON.parse(input))
             {
                 importedRules.push({
-                    origin: rule.origin.toString(),
-                    destination: rule.destination.toString(),
+                    source: rule.source.toString(),
+                    target: rule.target.toString(),
                     regularExpression: (rule.regularExpression == true)
                 });
             }

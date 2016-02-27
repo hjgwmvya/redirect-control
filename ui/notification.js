@@ -35,12 +35,11 @@ function addMenuItem(document, menuPopup, id, label, callback)
     menuItem.onclick = callback;
 }
 
-function showNotification(tabId, contentWindow, originLocation, destinationLocation)
+function showNotification(tabId, contentWindow, source, target)
 {
     let ignoreSubdomains = settings.get("ignoreSubdomains");
-
-    let originBaseDomain = (ignoreSubdomains) ? utils.getBaseDomainFromHost(originLocation.host) : originLocation.host;
-    let destinationBaseDomain = (ignoreSubdomains) ? utils.getBaseDomainFromHost(destinationLocation.host) : destinationLocation.host;
+    let ruleSource = (ignoreSubdomains) ? utils.getBaseDomainFromHost(source.host) : source.host;
+    let ruleTarget = (ignoreSubdomains) ? utils.getBaseDomainFromHost(target.host) : target.host;
 
     let chromeWindow = utils.getChromeWindow(contentWindow);
     let notificationBox = chromeWindow.getNotificationBox(contentWindow);
@@ -56,26 +55,26 @@ function showNotification(tabId, contentWindow, originLocation, destinationLocat
     }
 
     addMenuItem(notificationBox.ownerDocument, menuPopup, menuPopupId + "_item_from_to",
-        _("notification-allways-allow-from-to", originBaseDomain, destinationBaseDomain),
+        _("notification-allways-allow-from-to", ruleSource, ruleTarget),
         function()
         {
-            notifyListeners("add-rule", { tabId: tabId, origin: originBaseDomain, destination: destinationBaseDomain });
+            notifyListeners("add-rule", { tabId: tabId, source: ruleSource, target: ruleTarget });
         });
     addMenuItem(notificationBox.ownerDocument, menuPopup, menuPopupId + "_item_from",
-        _("notification-allways-allow-from", originBaseDomain),
+        _("notification-allways-allow-from", ruleSource),
         function()
         {
-            notifyListeners("add-rule", { tabId: tabId, origin: originBaseDomain, destination: null });
+            notifyListeners("add-rule", { tabId: tabId, source: ruleSource, target: null });
         });
     addMenuItem(notificationBox.ownerDocument, menuPopup, menuPopupId + "_item_to",
-        _("notification-allways-allow-to", destinationBaseDomain),
+        _("notification-allways-allow-to", ruleTarget),
         function()
         {
-            notifyListeners("add-rule", { tabId: tabId, origin: null, destination: destinationBaseDomain });
+            notifyListeners("add-rule", { tabId: tabId, source: null, target: ruleTarget });
         });
 
     let notificationValue = "{BFFE6EEF-CEC8-43D6-9E77-F83EB9169A26}";
-    let notificationLabel = _("notification-allow-redirect-from-to", shortUrl(originLocation.href), shortUrl(destinationLocation.href));
+    let notificationLabel = _("notification-allow-redirect-from-to", shortUrl(source.href), shortUrl(target.href));
 
     let buttonAddRule =
     {

@@ -8,18 +8,18 @@ exports.remove = removeRule;
 exports.exists = ruleExists;
 exports.addListener = addListener;
 
+let listeners = [ ];
+
 if (!storage.rules || !Array.isArray(storage.rules)) 
 {
     storage.rules = [ ];
     
     // example list
-    addRule("mozilla.com", "mozilla.org", false);
-    addRule("mozilla.org", "mozilla.com", false);
-    addRule("*.mozilla.com", "*.mozilla.com", false);
-    addRule("^(.*\\.)?mozilla\\.(com|org)$", "^(.*\\.)?mozilla\\.(com|org)$", true);
+    addRule({ source: "mozilla.com", target: "mozilla.org", regularExpression: false });
+    addRule({ source: "mozilla.org", target: "mozilla.com", regularExpression: false });
+    addRule({ source: "*.mozilla.com", target: "*.mozilla.com", regularExpression: false });
+    addRule({ source: "^(.*\\.)?mozilla\\.(com|org)$", target: "^(.*\\.)?mozilla\\.(com|org)$", regularExpression: true });
 }
-
-var listeners = [ ];
 
 function getRules()
 {
@@ -31,40 +31,36 @@ function setRules(rules)
     storage.rules = rules;
 }
 
-function addRule(origin, destination, regularExpression)
+function addRule(rule)
 {
-    if (!origin) origin = null;
-    if (!destination) destination = null;
+    rule.source = (rule.source) ? rule.source : ((rule.regularExpression) ? ".*" : "*");
+    rule.target = (rule.target) ? rule.target : ((rule.regularExpression) ? ".*" : "*");
 
-    let index = storage.rules.findIndex(function(element, index, array)
+    let index = storage.rules.findIndex(function(currentRule, index, array)
     {
-        return element.origin == origin && element.destination == destination && element.regularExpression == regularExpression;
+        return currentRule.source == rule.source && 
+            currentRule.target == rule.target && 
+            currentRule.regularExpression == rule.regularExpression;
     });
     if (index != -1) return;
     
-    storage.rules.push(
-    {
-        origin: origin,
-        destination: destination,
-        regularExpression: regularExpression,
-    });
+    storage.rules.push(rule);
     console.log("------------------- New Rule -------------------");
-    console.log("origin: " + origin);
-    console.log("destination: " + destination);
-    console.log("regularExpression: " + regularExpression);
+    console.log("source: " + rule.source);
+    console.log("target: " + rule.target);
+    console.log("regularExpression: " + rule.regularExpression);
     console.log("------------------------------------------------");
 
     notifyListener();
 }
 
-function removeRule(origin, destination, regularExpression)
+function removeRule(rule)
 {
-    if (!origin) origin = null;
-    if (!destination) destination = null;
-
-    let index = storage.rules.findIndex(function(element, index, array)
+    let index = storage.rules.findIndex(function(currentRule, index, array)
     {
-        return element.origin == origin && element.destination == destination && element.regularExpression == regularExpression;
+        return currentRule.source == rule.source && 
+            currentRule.target == rule.target && 
+            currentRule.regularExpression == rule.regularExpression;
     });
     if (index == -1) return;
     
@@ -73,50 +69,45 @@ function removeRule(origin, destination, regularExpression)
     notifyListener();
 }
 
-function ruleExists(origin, destination)
+function ruleExists(source, target)
 {
-    if (!origin) origin = null;
-    if (!destination) destination = null;
-
-    let makeRegEx = function(str)
+    let makeRegExp = function(str)
     {
-        return "^" + (str+'').replace(/[.?+^$[\]\\(){}|-]/g, "\\$&").replace(/[*]/, ".*") + "$";
+        return "^" + (str + '').replace(/[.?+^$[\]\\(){}|-]/g, "\\$&").replace(/[*]/, ".*") + "$";
     };
     
-    let index = storage.rules.findIndex(function(element, index, array)
+    let index = storage.rules.findIndex(function(rule, index, array)
     {
-        if (element.regularExpression)
+        if (rule.regularExpression)
         {
             try
             {
-                let originMatched = (element.origin == null) || 
-                    (origin != null && origin.match(new RegExp(element.origin, 'i')) != null);
-                let destinationMatched = (element.destination == null) || 
-                    (destination != null && destination.match(new RegExp(element.destination, 'i')) != null);
-                return originMatched && destinationMatched;
+                let sourceMatched = source.match(new RegExp(rule.source, 'i')) != null;
+                let targetMatched = target.match(new RegExp(rule.target, 'i')) != null;
+                return sourceMatched && targetMatched;
             }
             catch (e)
             {
-                console.error(e);
+                console.warn(e);
             }
             
             return false;
         }
+        else
+        {
+            try
+            {
+                let sourceMatched = source.match(new RegExp(makeRegExp(rule.source), 'i'));
+                let targetMatched = target.match(new RegExp(makeRegExp(rule.target), 'i'));
+                return sourceMatched && targetMatched;
+            }
+            catch (e)
+            {
+                console.warn(e);
+            }
         
-        try
-        {
-            let originMatched = (element.origin == null) || 
-                (origin != null && origin.match(new RegExp(makeRegEx(element.origin), 'i')) != null);
-            let destinationMatched = (element.destination == null) || 
-                (destination != null && destination.match(new RegExp(makeRegEx(element.destination), 'i')) != null);
-            return originMatched && destinationMatched;
+            return rule.source == source && rule.destination == target;
         }
-        catch (e)
-        {
-            console.error(e);
-        }
-    
-        return element.origin == origin && element.destination == destination;
     });
     
     return (index != -1);
@@ -129,8 +120,8 @@ function addListener(listener)
 
 function notifyListener()
 {
-    for (let key in listeners)
+    for (let listener of listeners)
     {
-        listeners[key]();
+        listener();
     }
 }

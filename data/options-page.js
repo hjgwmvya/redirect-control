@@ -3,33 +3,37 @@ let rules = [ ];
 let sortOption =
 {
     direction: "down",
-    columns: [ "origin", "destination" ],
+    columns: [ "source", "target" ],
 };
 
- $("#allow-base-domain").change(function(event)
+$("#allow-same-domain").change(function(event)
  {
-    changeSetting("allowBaseDomain", $("#allow-base-domain").prop("checked"));
+    changeSetting("allowSameDomain", $("#allow-same-domain").prop("checked"));
  });
-  $("#ignore-subdomains").change(function(event)
- {
-    changeSetting("ignoreSubdomains", $("#ignore-subdomains").prop("checked"));
- });
-$("#allow-triggered-by-link-click").change(function(event)
- {
-     changeSetting("allowTriggeredByLinkClick", $("#allow-triggered-by-link-click").prop("checked"));
- });
- 
-$("#head-origin").on("click", function(event)
+$("#allow-same-base-domain").change(function(event)
 {
-    event.preventDefault();
-
-    setSorting([ "origin", "destination" ]);
+    changeSetting("allowSameBaseDomain", $("#allow-same-base-domain").prop("checked"));
 });
-$("#head-destination").on("click", function(event)
+$("#ignore-subdomains").change(function(event)
+{
+    changeSetting("ignoreSubdomains", $("#ignore-subdomains").prop("checked"));
+});
+$("#allow-triggered-by-link-click").change(function(event)
+{
+     changeSetting("allowTriggeredByLinkClick", $("#allow-triggered-by-link-click").prop("checked"));
+});
+ 
+$("#head-source").on("click", function(event)
 {
     event.preventDefault();
 
-    setSorting([ "destination", "origin" ]);
+    setSorting([ "source", "target" ]);
+});
+$("#head-target").on("click", function(event)
+{
+    event.preventDefault();
+
+    setSorting([ "target", "source" ]);
 });
 $("#button-add").on("click", function(event)
 {
@@ -54,16 +58,16 @@ function changeSetting(name, value)
 
 function addRule()
 {
-    let origin = $("#input-origin").val();
-    let destination = $("#input-destination").val();
+    let source = $("#input-source").val();
+    let target = $("#input-target").val();
     let regularExpression = $("#input-regular-expression").prop("checked");
 
-    self.port.emit("add-rule", { origin: origin, destination: destination, regularExpression: regularExpression });
+    self.port.emit("add-rule", { source: source, target: target, regularExpression: regularExpression });
 }
 
-function deleteRule(origin, destination, regularExpression)
+function deleteRule(rule)
 {
-    self.port.emit("delete-rule", { origin: origin, destination: destination, regularExpression: regularExpression });
+    self.port.emit("delete-rule", rule);
 }
 
 function setSorting(columns)
@@ -121,14 +125,10 @@ function escapeTags(unescaped)
     return unescaped.replace(/</, '&lt;').replace(/>/, '&gt;');
 }
 
-function replaceNull(value)
-{
-    return (value) ? value : "(any)";
-}
-
 function updateSettings()
 {
-    $("#allow-base-domain").prop("checked", settings.allowBaseDomain);
+    $("#allow-same-domain").prop("checked", settings.allowSameDomain);
+    $("#allow-same-base-domain").prop("checked", settings.allowSameBaseDomain);
     $("#ignore-subdomains").prop("checked", settings.ignoreSubdomains);
     $("#allow-triggered-by-link-click").prop("checked", settings.allowTriggeredByLinkClick);
 }
@@ -139,40 +139,35 @@ function updateRules()
 
     sortRules();
 
-    for (let ruleIndex = 0; ruleIndex < rules.length; ruleIndex++)
+    for (let rule of rules)
     {
-        let rule = rules[ruleIndex];
-
-        let cellOrigin = $("<td>" + escapeTags(replaceNull(rule.origin)) + "</td>");
-        let cellDestination = $("<td>" + escapeTags(replaceNull(rule.destination)) + "</td>");
+        const currentRule = rule;
+    
+        let cellSource = $("<td>" + escapeTags(rule.source) + "</td>");
+        let cellTarget = $("<td>" + escapeTags(rule.target) + "</td>");
         let cellRegularExpression = $("<td><center><input type=\"checkbox\" disabled " + (rule.regularExpression ? "checked" : "") + " /><center></td>");
-        let deleteButton = $("<td><span class=\"remove-button\" title=\"Remove Rule\" data-l10n-id-title=\"options-page-remove-rule\" /></td>")
-                            .on("click", function() { deleteRule(rule.origin, rule.destination, rule.regularExpression) });
-        let ruleLine = $("<tr class=\"rule\" />")
-                        .append(cellOrigin)
-                        .append(cellDestination)
+        let buttonDelete = $("<td><span class=\"remove-button\" title=\"Remove Rule\" data-l10n-id-title=\"options-page-remove-rule\" /></td>")
+                            .on("click", function() { deleteRule(currentRule); });
+        let rowRule = $("<tr class=\"rule\" />")
+                        .append(cellSource)
+                        .append(cellTarget)
                         .append(cellRegularExpression)
-                        .append(deleteButton);
+                        .append(buttonDelete);
 
-        $("#rules").append(ruleLine);
+        $("#rules").append(rowRule);
     }
 }
 
-self.port.on("set-settings", function(values)
+self.port.on("set-settings", function(newSettings)
 {
-    settings = values;
+    settings = newSettings;
 
     updateSettings();
 });
 
-self.port.on("set-rules", function(values)
+self.port.on("set-rules", function(newRules)
 {
-    rules = [ ];
-
-    for (let key in values)
-    {
-        rules.push(values[key]);
-    }
+    rules = newRules;
 
     updateRules();
 });

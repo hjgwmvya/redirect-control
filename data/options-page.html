@@ -7,19 +7,20 @@
     </head>
     <body>
         <div class="head-category" data-l10n-id-text="options-page-common-settings">Common Settings</div>
-        <div><input type="checkbox" id="allow-base-domain"><label for="allow-base-domain" data-l10n-id-text="options-page-allow-request-from-same-base-domain">Allow request with the same base domain (e.g. abc.domain.tld -> xyz.domain.tld)</label></div>
+        <div><input type="checkbox" id="allow-same-domain"><label for="allow-same-domain" data-l10n-id-text="options-page-allow-request-from-same-domain">Allow request with the same domain (e.g. sub.domain.tld -> sub.domain.tld)</label></div>
+        <div><input type="checkbox" id="allow-same-base-domain"><label for="allow-same-base-domain" data-l10n-id-text="options-page-allow-request-from-same-base-domain">Allow request with the same base domain (e.g. abc.domain.tld -> xyz.domain.tld)</label></div>
         <div><input type="checkbox" id="ignore-subdomains"><label for="ignore-subdomains" data-l10n-id-text="options-page-ignore-subdomains">Ignore subdomains</label></div>
         <div><input type="checkbox" id="allow-triggered-by-link-click"><label for="allow-triggered-by-link-click" data-l10n-id-text="options-page-allow-request-triggered-by-a-link-click">Allow request triggered by a link click</label></div>
         <div data-l10n-id-text="options-page-allowed-redirects" class="head-category">Allowed Redirects:</div>
         <table>
         <tbody id="rules">
             <tr>
-                <th id="head-origin" data-l10n-id-text="options-page-origin">Origin</th><th id="head-destination" data-l10n-id-text="options-page-destination">Destination</th><th id="head-regular-expression" data-l10n-id-text="options-page-regular-expression">Regular Expression</th><th></th>
+                <th id="head-source" data-l10n-id-text="options-page-origin">Origin</th><th id="head-target" data-l10n-id-text="options-page-destination">Destination</th><th id="head-regular-expression" data-l10n-id-text="options-page-regular-expression">Regular Expression</th><th></th>
             </tr>
         </tbody>
         </table>
-        <input type="text" id="input-origin" />
-        <input type="text" id="input-destination" />
+        <input type="text" id="input-source" />
+        <input type="text" id="input-target" />
         <center id="input-regular-expression-center"><input type="checkbox" id="input-regular-expression" /></center>
         <span id="button-add" title="Add Rule" data-l10n-id-title="options-page-add-rule"> </span>
         <div><span data-l10n-id-text="options-page-more-about">More about</span> <a target="_blank" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#Writing_a_regular_expression_pattern" data-l10n-id-text="options-page-regular-expression">regular expressions</a></div>

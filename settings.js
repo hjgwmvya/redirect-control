@@ -6,26 +6,34 @@ exports.set = setSetting;
 exports.get = getSetting;
 exports.addListener = addListener;
 
+let listeners = [ ];
+
 if (!storage.settings)
 {
     storage.settings = { };
 }
 
 // default settings
-if (storage.settings.allowBaseDomain === undefined)
+let defaultSettings =
 {
-    storage.settings.allowBaseDomain = true;
-}
-if (storage.settings.ignoreSubdomains === undefined)
-{
-    storage.settings.ignoreSubdomains = true;
-}
-if (storage.settings.allowTriggeredByLinkClick === undefined)
-{
-    storage.settings.allowTriggeredByLinkClick = true;
-}
+    allowSameDomain: true,
+    allowSameBaseDomain: true,
+    ignoreSubdomains: true,
+    allowTriggeredByLinkClick: true,
+};
 
-var listeners = [ ];
+function applyDefaultSettings()
+{
+    for (let settingName in defaultSettings)
+    {
+        if (storage.settings[settingName] === undefined)
+        {
+            console.log("Default setting applied: " + settingName + " = " + defaultSettings[settingName]);
+            storage.settings[settingName] = defaultSettings[settingName];
+        }
+    }
+}
+applyDefaultSettings();
 
 function getSettings()
 {
@@ -56,8 +64,8 @@ function addListener(listener)
 
 function notifyListener()
 {
-    for (let key in listeners)
+    for (let listener of listeners)
     {
-        listeners[key]();
+        listener();
     }
 }

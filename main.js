@@ -1,18 +1,22 @@
+const unload = require("sdk/system/unload");
+const urls = require("sdk/url");
+const tabs = require("sdk/tabs");
+const { Ci, Cr } = require("chrome");
+
+require("./migration.js");
+
 require("./uninstall-cleanup.js");
 require("./ui/options-button.js");
 require("./ui/options-page.js");
 
-const unload = require("sdk/system/unload");
-const urls = require("sdk/url");
-const tabs = require("sdk/tabs");
 const utils = require("./utils.js");
 const settings = require("./settings.js");
 const rules = require("./rules.js");
 const notification = require("./ui/notification.js");
 
-const { Ci, Cr } = require("chrome");
-
-let currentRequests = { };
+let requests = { };
+let metaRefreshs = { };
+let redirects = { };
 let clickedLinks = [ ];
 
 let webProgress = require("./web-progress.js").create();
@@ -36,21 +40,22 @@ tabs.on('close', function(tab)
     
     cancel(tabId);
     
-    delete currentRequests[tabId];
+    delete requests[tabId];
+    delete metaRefreshs[tabId];
+    delete redirects[tabId];
     
     console.log("Tab closed: " + tabId);
 });
 
 function suspend(tabId, request)
 {
-    let currentRequest = currentRequests[tabId];
-    if (!currentRequest) return;
-
     cancel(tabId);
+    
     try
     {
         request.suspend();
-        currentRequest.request = request;
+        requests[tabId] = request;
+        
         console.log("Request suspended");
     }
     catch (exception)
@@ -61,13 +66,14 @@ function suspend(tabId, request)
 
 function resume(tabId)
 {
-    let currentRequest = currentRequests[tabId];
-    if (!currentRequest || !currentRequest.request) return;
+    let request = requests[tabId];
+    if (!request) return;
     
     try
     {
-        currentRequest.request.resume();
-        currentRequest.request = null;
+        request.resume();
+        delete requests[tabId];
+       
         console.log("Request continued");
     }
     catch (exception)
@@ -78,14 +84,15 @@ function resume(tabId)
 
 function cancel(tabId)
 {
-    let currentRequest = currentRequests[tabId];
-    if (!currentRequest || !currentRequest.request) return;
+    let request = requests[tabId];
+    if (!request) return;
 
     try
     {
-        currentRequest.request.resume();
-        currentRequest.request.cancel(Cr.NS_BINDING_ABORTED);
-        currentRequest.request = null;
+        request.resume();
+        request.cancel(Cr.NS_BINDING_ABORTED);
+        delete requests[tabId];
+        
         console.log("Request cancelled");
     }
     catch (exception)
@@ -96,7 +103,7 @@ function cancel(tabId)
 
 function cleanupLinks()
 {
-    var now = new Date().getTime();
+    let now = new Date().getTime();
 
     for (let index = clickedLinks.length - 1; index >= 0; index--)
     {
@@ -108,26 +115,26 @@ function cleanupLinks()
     }
 }
 
-function addClickedLink(origin, destination)
+function addClickedLink(source, target)
 {
     cleanupLinks();
     
     console.log("--------------------- Link ---------------------");
-    console.log("origin: " + origin);
-    console.log("destination: " + destination);
+    console.log("source: " + source);
+    console.log("target: " + target);
     console.log("------------------------------------------------");
     
     let index = clickedLinks.findIndex(function(element, index, array)
     {
-        return element.origin == origin && element.destination == destination;
+        return element.source == source && element.target == target;
     });
     
     if (index == -1)
     {
         clickedLinks.push(
         {
-            origin: origin,
-            destination: destination,
+            source: source,
+            target: target,
             time: new Date().getTime(),
         });
     }
@@ -137,34 +144,50 @@ function addClickedLink(origin, destination)
     }
 }
 
-function containsClickedLink(origin, destination)
+function containsClickedLink(source, target)
 {
-    let index = clickedLinks.findIndex(function(element, index, array)
+    let index = clickedLinks.findIndex(function(clickedLink, index, array)
     {
-        return element.origin == origin && element.destination == destination;
+        return clickedLink.source == source && clickedLink.target == target;
     });
     if (index == -1) return;
     
     let clickedTime = clickedLinks[index].time;
    
-    var now = new Date().getTime();
+    let now = new Date().getTime();
     return (now - clickedTime <= 1000 * 10);
 }
 
-function isSameBaseDomain(originLocation, destinationLocation)
+function getWindow(webProgress)
 {
-    if (originLocation && destinationLocation)
+    try
     {
-        let originBaseDomain = utils.getBaseDomainFromHost(originLocation.host);
-        let destinationBaseDomain = utils.getBaseDomainFromHost(destinationLocation.host);
-
-        if (originBaseDomain == destinationBaseDomain)
-        {
-            return true;
-        }
+        let window = webProgress.DOMWindow;
+        if (!window || window.frameElement)
+            return null;
+            
+        return window;
     }
+    catch (e)
+    {
+        return null;
+    }
+}
 
-    return false;
+function getTab(window)
+{
+    try
+    {
+        let tab = utils.getTabForWindow(window);
+        if (!tab.linkedBrowser.docShell)
+            return null;
+        
+        return tab;
+    }
+    catch (e)
+    {
+        return null;
+    }
 }
 
 function getReferrer(channel)
@@ -209,16 +232,25 @@ function getStateFlags(stateFlags)
     return flags;
 }
 
-function getLoadFlags(loadType)
+function getLoadCommand(loadCommand)
+{
+    let command = "";
+    
+    if (loadCommand & Ci.nsIDocShell.LOAD_CMD_NORMAL) command = "LOAD_CMD_NORMAL ";
+    if (loadCommand & Ci.nsIDocShell.LOAD_CMD_RELOAD) command = "LOAD_CMD_RELOAD ";
+    if (loadCommand & Ci.nsIDocShell.LOAD_CMD_HISTORY) command = "LOAD_CMD_HISTORY ";
+    if (loadCommand & Ci.nsIDocShell.LOAD_CMD_PUSHSTATE) command = "LOAD_CMD_PUSHSTATE ";
+
+    command += loadCommand;
+    
+    return command;
+}
+
+function getLoadFlags(loadFlags)
 {
     let flags = "";
-    if (loadType & Ci.nsIDocShell.LOAD_CMD_NORMAL) flags += "LOAD_CMD_NORMAL ";
-    if (loadType & Ci.nsIDocShell.LOAD_CMD_RELOAD) flags += "LOAD_CMD_RELOAD ";
-    if (loadType & Ci.nsIDocShell.LOAD_CMD_HISTORY) flags += "LOAD_CMD_HISTORY ";
-    if (loadType & Ci.nsIDocShell.LOAD_CMD_PUSHSTATE) flags += "LOAD_CMD_PUSHSTATE ";
 
-    let loadFlags = loadType >> 16;
-    if (loadFlags & Ci.nsIWebNavigation.LOAD_FLAGS_NONE) flags += "LOAD_FLAGS_NONE ";
+    if (loadFlags == 0) flags += "LOAD_FLAGS_NONE ";
     if (loadFlags & Ci.nsIWebNavigation.LOAD_FLAGS_IS_REFRESH) flags += "LOAD_FLAGS_IS_REFRESH ";
     if (loadFlags & Ci.nsIWebNavigation.LOAD_FLAGS_IS_LINK) flags += "LOAD_FLAGS_IS_LINK ";
     if (loadFlags & Ci.nsIWebNavigation.LOAD_FLAGS_BYPASS_HISTORY) flags += "LOAD_FLAGS_BYPASS_HISTORY ";
@@ -236,60 +268,62 @@ function getLoadFlags(loadType)
     if (loadFlags & Ci.nsIWebNavigation.LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP) flags += "LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP ";
     if (loadFlags & Ci.nsIWebNavigation.LOAD_FLAGS_FIXUP_SCHEME_TYPOS) flags += "LOAD_FLAGS_FIXUP_SCHEME_TYPOS ";
 
-    flags += loadType;
-
+    flags += loadFlags;
+    
     return flags;
 }
 
-function isRequestAllowed(loadType, referrerLocation, destinationLocation, isRedirect)
+function isRequestAllowed(loadCommand, loadFlags, source, target)
 {
     try
     {
-    if (loadType & Ci.nsIDocShell.LOAD_CMD_HISTORY)
+    if (loadCommand & Ci.nsIDocShell.LOAD_CMD_HISTORY)
     {
         console.log("Request allowed: History");
         return true;
     }
 
-    if (loadType & Ci.nsIDocShell.LOAD_CMD_RELOAD)
+    if (loadCommand & Ci.nsIDocShell.LOAD_CMD_RELOAD)
     {
         console.log("Request allowed: Refresh");
         return true;
     }
 
-    if (settings.get("allowTriggeredByLinkClick"))
-    {
-        if (!isRedirect && (loadType & Ci.nsIDocShell.LOAD_CMD_NORMAL) && ((loadType >> 16) & Ci.nsIWebNavigation.LOAD_FLAGS_IS_LINK))
-        {
-            console.log("Request allowed: Link clicked");
-            return true;
-        }
-    }
-
-    if (!referrerLocation)
+    if (!source)
     {
         console.log("Request allowed: User action");
         return true;
     }
-   
-    if (referrerLocation.host == destinationLocation.host)
-    {
-        console.log("Request allowed: Same host");
-        return true;
-    }
-   
+     
     if (settings.get("allowTriggeredByLinkClick"))
     {
-        if (containsClickedLink(referrerLocation.href, destinationLocation.href))
+        if ((loadCommand & Ci.nsIDocShell.LOAD_CMD_NORMAL) && (loadFlags & Ci.nsIWebNavigation.LOAD_FLAGS_IS_LINK))
+        {
+            console.log("Request allowed: Link clicked");
+            return true;
+        }
+    
+        if (containsClickedLink(source.href, target.href))
         {
             console.log("Request allowed: Link clicked");
             return true;
         }
     }
-    
-    if (settings.get("allowBaseDomain"))
+   
+    if (settings.get("allowSameDomain"))
     {
-        if (isSameBaseDomain(referrerLocation, destinationLocation))
+        if (source.host == target.host)
+        {
+            console.log("Request allowed: Same domain");
+            return true;
+        }
+    }
+   
+    if (settings.get("allowSameBaseDomain"))
+    {
+        let sourceBaseDomain = utils.getBaseDomainFromHost(source.host);
+        let targetBaseDomain = utils.getBaseDomainFromHost(target.host);
+        if (sourceBaseDomain == targetBaseDomain)
         {
             console.log("Request allowed: Same base domain");
             return true;
@@ -297,18 +331,11 @@ function isRequestAllowed(loadType, referrerLocation, destinationLocation, isRed
     }
     
     if (settings.get("ignoreSubdomains"))
-    {
-        console.log(referrerLocation.host);
-        console.log(utils.getBaseDomainFromHost(referrerLocation.host));
-        console.log(destinationLocation.host);
-        console.log(utils.getBaseDomainFromHost(destinationLocation.host));
-        
-        let referrerBaseDomain = utils.getBaseDomainFromHost(referrerLocation.host);
-        let destinationBaseDomain = utils.getBaseDomainFromHost(destinationLocation.host);
-        if ((referrerBaseDomain == destinationBaseDomain) ||
-            rules.exists(referrerBaseDomain, destinationBaseDomain) ||
-            rules.exists(referrerBaseDomain, null) ||
-            rules.exists(null, destinationBaseDomain))
+    {     
+        let sourceBaseDomain = utils.getBaseDomainFromHost(source.host);
+        let targetBaseDomain = utils.getBaseDomainFromHost(target.host);
+        if ((sourceBaseDomain == targetBaseDomain) ||
+            rules.exists(sourceBaseDomain, targetBaseDomain))
         {
             console.log("Request allowed: Rule matched");
             return true;
@@ -316,9 +343,7 @@ function isRequestAllowed(loadType, referrerLocation, destinationLocation, isRed
     }
     else
     {
-        if (rules.exists(referrerLocation.host, destinationLocation.host) ||
-            rules.exists(referrerLocation.host, null) ||
-            rules.exists(null, destinationLocation.host))
+        if (rules.exists(source.host, target.host))
         {
             console.log("Request allowed: Rule matched");
             return true;
@@ -333,26 +358,45 @@ function isRequestAllowed(loadType, referrerLocation, destinationLocation, isRed
     }
 }
 
-webProgress.addListener(function(webProgress, request, stateFlags, status)
+function getMetaRefreshInfo(tabId, channel)
+{
+    let metaRefresh = metaRefreshs[tabId];
+    if (!metaRefresh || !metaRefresh.source) return null;
+    
+    let target = urls.URL(channel.URI.prePath + channel.URI.path);
+    if (metaRefresh.target.href != target.href) return null;
+    
+    return metaRefresh;
+}
+
+function getRedirectInfo(tabId, channel)
+{
+    let redirect = redirects[tabId];
+    if (!redirect || !redirect.source) return null;
+    
+    let origin = urls.URL(channel.originalURI.prePath + channel.originalURI.path);
+    let target = urls.URL(channel.URI.prePath + channel.URI.path);
+    if (redirect.origin.href != origin.href || redirect.source.href == target.href) return null;
+    
+    return redirect;
+}
+
+webProgress.addStateChangedListener(function(webProgress, request, stateFlags, status)
 {
     try
     {
-    let window = null;
-    try
-    {
-        window = webProgress.DOMWindow;
-    }
-    catch (e) { }
-    if (!window || window.frameElement) return;
-    
     let channel = request.nsIHttpChannel;
     if (!channel) return;
-
-    let tab = utils.getTabForWindow(window);
-    if (!tab || !tab.linkedBrowser.docShell) return;
-
+    
+    let window = getWindow(webProgress);
+    if (!window) return;
+    
+    let tab = getTab(window);
+    if (!tab) return;
+    
+    let tabId = tab.linkedPanel;
     let loadInfo = channel.loadInfo;
-
+    
     // loadInfo.externalContentPolicyType for FF version >= 44.0
     // loadInfo.contentPolicyType for FF version < 44.0
     if (loadInfo.contentPolicyType != Ci.nsIContentPolicy.TYPE_DOCUMENT && 
@@ -361,89 +405,126 @@ webProgress.addListener(function(webProgress, request, stateFlags, status)
         return;
     }
 
-    let originLocation = urls.URL(channel.originalURI.prePath + channel.originalURI.path);
-    let destinationLocation = urls.URL(channel.URI.prePath + channel.URI.path);
-    let referrerLocation = getReferrer(channel);
+    let origin = urls.URL(channel.originalURI.prePath + channel.originalURI.path);
+    let target = urls.URL(channel.URI.prePath + channel.URI.path);
+    let referrer = getReferrer(channel);
 
     let loadType = tab.linkedBrowser.docShell.loadType;
-    let tabId = tab.linkedPanel;
-    
-    if (!currentRequests[tabId])
-    {
-        currentRequests[tabId] = { };
-    }
-    let currentRequest = currentRequests[tabId];
-        
-    if (stateFlags & Ci.nsIWebProgressListener.STATE_START &&
-        stateFlags & Ci.nsIWebProgressListener.STATE_IS_WINDOW)
-    {
-        cancel(tabId);
-        
-        currentRequest.originLocation = originLocation;
-        currentRequest.destinationLocation = destinationLocation;
+    let loadCommand = loadType;
+    let loadFlags = (loadType >> 16);
 
-        console.log("------------------- Request --------------------");
-        console.log("tabId " + tabId);
-        console.log("referrer " + ((referrerLocation) ? referrerLocation.href : "(null)"));
-        console.log("origin " + originLocation.href);
-        console.log("destination " + destinationLocation.href);
-        console.log("stateFlags " + getStateFlags(stateFlags));
-        console.log("loadType " + getLoadFlags(loadType));
-        console.log("------------------------------------------------");
-
-        let isAllowed = isRequestAllowed(loadType, referrerLocation, destinationLocation, false);
-        if (isAllowed)
+    if (stateFlags & Ci.nsIWebProgressListener.STATE_START)
+    {   
+        let metaRefresh = getMetaRefreshInfo(tabId, channel);
+        let redirect = getRedirectInfo(tabId, channel);
+     
+        redirects[tabId] =
         {
-            return;
-        }
-
-        suspend(tabId, request);
-        notification.show(tabId, window, referrerLocation, destinationLocation);
-        return;
-    }
-    
-    if (stateFlags & Ci.nsIWebProgressListener.STATE_START &&
-        currentRequest.originLocation &&
-        currentRequest.originLocation.href == originLocation.href &&
-        originLocation.href != destinationLocation.href)
-    {
-        cancel(tabId);
-    
-        let oldDestinationLocation = currentRequest.destinationLocation;
-        currentRequest.destinationLocation = destinationLocation;
-
-        console.log("------------------ Redirect --------------------");
-        console.log("tabId " + tabId);
-        console.log("referrer " + ((referrerLocation) ? referrerLocation.href : "(null)"));
-        console.log("origin " + originLocation.href);
-        console.log("destination (old) " + oldDestinationLocation.href);
-        console.log("destination (new) " + destinationLocation.href);
-        console.log("stateFlags " + getStateFlags(stateFlags));
-        console.log("loadType " + getLoadFlags(loadType));
-        console.log("------------------------------------------------");
-
-        let isAllowed = isRequestAllowed(loadType, oldDestinationLocation, destinationLocation, true);
-        if (isAllowed)
+            origin: origin,
+            source: target,
+        };
+     
+        let source = null;
+        
+        if (metaRefresh)
         {
-            return;
+            source = metaRefresh.source;
+                 
+            console.log("----------------- MetaRefresh ------------------");
+            console.log("tabId " + tabId);
+            console.log("source " + source.href);
+            console.log("target " + target.href);
+            console.log("stateFlags " + getStateFlags(stateFlags));
+            console.log("loadCommand " + getLoadCommand(loadCommand));
+            console.log("loadFlags " + getLoadFlags(loadFlags));
+            console.log("------------------------------------------------");
         }
-
-        suspend(tabId, request);
-        notification.show(tabId, window, oldDestinationLocation, destinationLocation);
+        else if (redirect)
+        {
+            source = redirect.source;
+            loadCommand = Ci.nsIDocShell.LOAD_CMD_NORMAL;
+            loadFlags = Ci.nsIWebNavigation.LOAD_FLAGS_NONE;
+            
+            console.log("------------------ Redirect --------------------");
+            console.log("tabId " + tabId);
+            console.log("source " + source.href);
+            console.log("target " + target.href);
+            console.log("stateFlags " + getStateFlags(stateFlags));
+            console.log("loadCommand " + getLoadCommand(loadCommand));
+            console.log("loadFlags " + getLoadFlags(loadFlags));
+            console.log("------------------------------------------------");
+        }
+        else
+        {
+            source = referrer;
+            
+            console.log("------------------- Request --------------------");
+            console.log("tabId " + tabId);
+            console.log("source " + ((source) ? source.href : "(null)"));
+            console.log("target " + target.href);
+            console.log("stateFlags " + getStateFlags(stateFlags));
+            console.log("loadCommand " + getLoadCommand(loadCommand));
+            console.log("loadFlags " + getLoadFlags(loadFlags));
+            console.log("------------------------------------------------");
+        }
+        
+        let isAllowed = isRequestAllowed(loadCommand, loadFlags, source, target);
+        if (!isAllowed)
+        {
+            suspend(tabId, request);
+            notification.show(tabId, window, source, target);
+        }
+        
         return;
     }
 
     if (stateFlags & Ci.nsIWebProgressListener.STATE_STOP &&
         stateFlags & Ci.nsIWebProgressListener.STATE_IS_WINDOW)
     {
-        currentRequest.originLocation = null;
-        currentRequest.destinationLocation = null;
-
+        delete requests[tabId];
+        delete redirects[tabId];
+    
         console.log("-------------------- Stop ----------------------");
         console.log("tabId " + tabId);
         console.log("------------------------------------------------");
         return;
     }
+    }
+    catch (exception)
+    {
+        console.error(exception);
+    }
+});
+
+webProgress.addRefreshAttemptedListeners(function(webProgress, refreshURI, millis, sameURI)
+{
+    try
+    {
+    let channel = tab.linkedBrowser.docShell.currentDocumentChannel;
+    if (!channel) return;
+    
+    let window = getWindow(webProgress);
+    if (!window) return;
+    
+    let tab = getTab(window);
+    if (!tab) return;
+
+    let tabId = tab.linkedPanel;
+    
+    let source = urls.URL(channel.URI.prePath + channel.URI.path);
+    let target = urls.URL(refreshURI.prePath + refreshURI.path);
+
+    metaRefreshs[tabId] =
+    {
+        source: source,
+        target: target,
+    };
+    
+    console.log("-------------- MetaRefresh Attempt -------------");
+    console.log("tabId " + tabId);
+    console.log("source " + source.href);
+    console.log("target " + target.href);
+    console.log("------------------------------------------------");
     }
     catch (exception)
     {
@@ -504,10 +585,10 @@ contextMenu.addListener(function(event)
         if (!gContextMenuContentData.documentURIObject || !gContextMenuContentData.documentURIObject.spec) return;
         if (!gContextMenu.linkURI || !gContextMenu.linkURI.spec) return;
     
-        let origin = gContextMenuContentData.documentURIObject.spec;
-        let destination = gContextMenu.linkURI.spec;
+        let source = gContextMenuContentData.documentURIObject.spec;
+        let target = gContextMenu.linkURI.spec;
         
-        addClickedLink(origin, destination);
+        addClickedLink(source, target);
         return;
     }
 
@@ -516,10 +597,10 @@ contextMenu.addListener(function(event)
         if (!gContextMenuContentData.documentURIObject || !gContextMenuContentData.documentURIObject.spec) return;
         if (!gContextMenu.mediaURL) return;
         
-        let origin = gContextMenuContentData.documentURIObject.spec;
-        let destination = gContextMenu.mediaURL;
+        let source = gContextMenuContentData.documentURIObject.spec;
+        let target = gContextMenu.mediaURL;
         
-        addClickedLink(origin, destination);
+        addClickedLink(source, target);
         return;
     }
     
@@ -530,10 +611,10 @@ contextMenu.addListener(function(event)
         if (!gContextMenuContentData.referrer) return;
         if (!gContextMenuContentData.docLocation) return;
     
-        let origin = gContextMenuContentData.referrer;
-        let destination = gContextMenuContentData.docLocation;
+        let source = gContextMenuContentData.referrer;
+        let target = gContextMenuContentData.docLocation;
         
-        addClickedLink(origin, destination);
+        addClickedLink(source, target);
         return;
     }
 });
@@ -554,7 +635,7 @@ notification.addListener(function(event, data)
 
     if (event == "add-rule")
     {
-        rules.add(data.origin, data.destination);
+        rules.add({ source: data.source, target: data.target, regularExpression: false });
         resume(data.tabId);
         return;
     }

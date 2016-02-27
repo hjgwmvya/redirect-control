@@ -10,7 +10,7 @@ unload.when(function(reason)
 {
     if (reason != "disable") return;
 
-    var checkState = { value: true }; 
+    let checkState = { value: true }; 
     promptService.alertCheck(null, _("uninstall-cleanup-title", addon.title), _("uninstall-cleanup-text", addon.title), _("uninstall-cleanup-keep-settings"), checkState);
     if (!checkState.value)
     {
