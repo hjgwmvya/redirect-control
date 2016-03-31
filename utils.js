@@ -6,6 +6,8 @@ exports.getTabForWindow = getTabForWindow;
 
 function getBaseDomainFromHost(host)
 {
+    if (host == null) return null;
+
     if (host.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/) != null)
     {
         return host;

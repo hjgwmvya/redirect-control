@@ -208,7 +208,7 @@ function getReferrer(channel)
     }
     catch (e)
     {
-        console.error(e);
+        //console.error(e);
         return null;
     }
 }
@@ -277,6 +277,12 @@ function isRequestAllowed(loadCommand, loadFlags, source, target)
 {
     try
     {
+    if ((source && source.protocol == "view-source:") || (target && target.protocol == "view-source:"))
+    {
+        console.log("Request allowed: View Source");
+        return true;        
+    }
+    
     if (loadCommand & Ci.nsIDocShell.LOAD_CMD_HISTORY)
     {
         console.log("Request allowed: History");
@@ -385,12 +391,12 @@ webProgress.addStateChangedListener(function(webProgress, request, stateFlags, s
 {
     try
     {
-    let channel = request.nsIHttpChannel;
+    let channel = request.nsIHttpChannel;   
     if (!channel) return;
     
     let window = getWindow(webProgress);
     if (!window) return;
-    
+       
     let tab = getTab(window);
     if (!tab) return;
     
@@ -404,11 +410,11 @@ webProgress.addStateChangedListener(function(webProgress, request, stateFlags, s
     {
         return;
     }
-
+    
     let origin = urls.URL(channel.originalURI.prePath + channel.originalURI.path);
     let target = urls.URL(channel.URI.prePath + channel.URI.path);
     let referrer = getReferrer(channel);
-
+    
     let loadType = tab.linkedBrowser.docShell.loadType;
     let loadCommand = loadType;
     let loadFlags = (loadType >> 16);
@@ -499,21 +505,20 @@ webProgress.addStateChangedListener(function(webProgress, request, stateFlags, s
 webProgress.addRefreshAttemptedListeners(function(webProgress, refreshURI, millis, sameURI)
 {
     try
-    {
-    let channel = tab.linkedBrowser.docShell.currentDocumentChannel;
-    if (!channel) return;
-    
+    {   
     let window = getWindow(webProgress);
     if (!window) return;
-    
+        
     let tab = getTab(window);
     if (!tab) return;
 
-    let tabId = tab.linkedPanel;
-    
+    let channel = tab.linkedBrowser.docShell.currentDocumentChannel;
+    if (!channel) return;
+        
     let source = urls.URL(channel.URI.prePath + channel.URI.path);
     let target = urls.URL(refreshURI.prePath + refreshURI.path);
 
+    let tabId = tab.linkedPanel;
     metaRefreshs[tabId] =
     {
         source: source,

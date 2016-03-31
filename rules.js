@@ -71,13 +71,15 @@ function removeRule(rule)
 
 function ruleExists(source, target)
 {
+    if (!source || !target) return false;
+
     let makeRegExp = function(str)
     {
         return "^" + (str + '').replace(/[.?+^$[\]\\(){}|-]/g, "\\$&").replace(/[*]/, ".*") + "$";
     };
     
     let index = storage.rules.findIndex(function(rule, index, array)
-    {
+    {   
         if (rule.regularExpression)
         {
             try
