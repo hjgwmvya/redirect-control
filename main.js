@@ -487,11 +487,26 @@ webProgress.addStateChangedListener(function(webProgress, request, stateFlags, s
     if (stateFlags & Ci.nsIWebProgressListener.STATE_STOP &&
         stateFlags & Ci.nsIWebProgressListener.STATE_IS_WINDOW)
     {
-        delete requests[tabId];
-        delete redirects[tabId];
+        // removed for bug on http://www.google.com/url?q=http%3A%2F%2Fjpetazzo.github.io%2F2013%2F11%2F17%2Fflynn-docker-paas%2F&sa=D&sntz=1&usg=AFQjCNGwc_wuE2pKzTqPOXQVw44HJ_2Inw
+        //delete requests[tabId];
+        //delete redirects[tabId];
+    
+        let metaRefresh = getMetaRefreshInfo(tabId, channel);
+        let redirect = getRedirectInfo(tabId, channel);
+    
+        let source = null;
+        //source = metaRefresh.source;
+        //source = redirect.source;
+        source = referrer;
     
         console.log("-------------------- Stop ----------------------");
         console.log("tabId " + tabId);
+        console.log("source " + ((source) ? source.href : "(null)"));
+        console.log("origin " + origin.href);
+        console.log("target " + target.href);
+        console.log("stateFlags " + getStateFlags(stateFlags));
+        console.log("loadCommand " + getLoadCommand(loadCommand));
+        console.log("loadFlags " + getLoadFlags(loadFlags));
         console.log("------------------------------------------------");
         return;
     }

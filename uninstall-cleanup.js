@@ -1,5 +1,5 @@
 const unload = require("sdk/system/unload");
-const addon = require("./../package.json");
+//const addon = require("./../package.json");
 const _ = require("sdk/l10n").get;
 
 const { Ci, Cc } = require("chrome");
@@ -10,8 +10,12 @@ unload.when(function(reason)
 {
     if (reason != "disable") return;
 
+    // fix
+    let addonTitle = "Redirect Control";
+    
     let checkState = { value: true }; 
-    promptService.alertCheck(null, _("uninstall-cleanup-title", addon.title), _("uninstall-cleanup-text", addon.title), _("uninstall-cleanup-keep-settings"), checkState);
+    //promptService.alertCheck(null, _("uninstall-cleanup-title", addon.title), _("uninstall-cleanup-text", addon.title), _("uninstall-cleanup-keep-settings"), checkState);
+    promptService.alertCheck(null, _("uninstall-cleanup-title", addonTitle), _("uninstall-cleanup-text", addonTitle), _("uninstall-cleanup-keep-settings"), checkState);
     if (!checkState.value)
     {
         require("sdk/simple-storage").storage = null;
